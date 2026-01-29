@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Truco Pro - Progressão 3, 6, 9, 12</title>
+    <style>
+        :root {
+            --cor-nos: #2ecc71;
+            --cor-eles: #3498db;
+            --accent: #f1c40f;
+            --danger: #e74c3c;
+            --gold: #ffd700;
+        }
+
+        body { 
+            background: #1a1a1a;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; margin: 0; color: white; overflow: hidden;
+        }
+
+        #painel-controle {
+            width: 160px; padding: 15px; background: rgba(255,255,255,0.05);
+            border-radius: 15px; margin-right: 20px; text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .score { font-size: 40px; font-weight: 900; margin-bottom: 5px; }
+
+        #contador-rodadas {
+            display: flex; justify-content: center; gap: 8px; margin: 10px 0;
+        }
+        .queda-dot {
+            width: 14px; height: 14px; border-radius: 50%;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s;
+        }
+        .queda-nos { background: var(--cor-nos); box-shadow: 0 0 10px var(--cor-nos); border: none; }
+        .queda-eles { background: var(--cor-eles); box-shadow: 0 0 10px var(--cor-eles); border: none; }
+
+        #mesa {
+            width: 800px; height: 500px; background: #145a32;
+            position: relative; border-radius: 200px; border: 15px solid #0e351d;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        #vira-container {
+            position: absolute; top: 40px; right: 100px;
+            display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 10;
+        }
+
+        #vira-slot { position: relative; width: 50px; height: 75px; }
+
+        .baralho-decor {
+            position: absolute; top: 3px; left: 3px; width: 100%; height: 100%;
+            background: #2c3e50; border-radius: 5px; border: 1px solid #111; z-index: 1;
+        }
+
+        .jogador { 
+            position: absolute; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            z-index: 20;
+            width: 80px; 
+        }
+        .cartas { display: flex; gap: 5px; justify-content: center; }
+
+        .norte { top: 10px; left: 50%; transform: translateX(-50%); }
+        .sul { bottom: 10px; left: 50%; transform: translateX(-50%); }
+        .leste { right: 10px; top: 50%; transform: translateY(-50%); }
+        .oeste { left: 10px; top: 50%; transform: translateY(-50%); }
+
+        .nome-j { 
+            font-size: 10px; font-weight: bold; background: rgba(0,0,0,0.7); 
+            padding: 3px 8px; border-radius: 5px; margin: 2px 0; 
+            text-align: center; white-space: nowrap;
+        }
+        
+        .avatar-mesa { order: 1;  }
+        .nome-j { order: 2; }
+        .cartas { order: 3; }
+        
+        .sul .cartas { order: 1; margin-bottom: 5px; }
+        .sul .avatar-mesa { order: 2; }
+        .sul .nome-j { order: 3; }
+        
+        .oeste .cartas, .leste .cartas {
+            position: absolute; top: 50%;
+            display: flex; gap: 5px; justify-content: center;
+        }
+
+        .oeste .cartas {
+            left: 140%; /* Afasta do avatar */
+            transform: translateY(-50%) rotate(90deg);
+            transform-origin: center center;
+        }
+        .leste .cartas {
+            right: 140%; /* Afasta do avatar */
+            transform: translateY(-50%) rotate(-90deg);
+            transform-origin: center center;
+        }
+
+        .score-tag {
+            position: absolute; background: #fff; color: #000;
+            font-size: 10px; font-weight: 900; padding: 2px 6px;
+            border-radius: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            display: none; white-space: pre; text-align: center;
+            line-height: 1.1; z-index: 50;
+        }
+        
+        .balao-fala {
+            position: absolute;
+            background: #fff;
+            color: #000;
+            padding: 10px 15px;
+            border-radius: 20px;
+            border-bottom-left-radius: 0;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 200;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-width: 150px;
+            text-align: center;
+            pointer-events: none;
+        }
+        @keyframes popIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        /* Posicionamento relativo ao avatar */
+        .sul .score-tag { right: 15px; top: 85px; }
+        .norte .score-tag { right: 0; top: 10px; }
+        .oeste .score-tag { right: 0; top: 0; }
+        .leste .score-tag { left: 0; top: 0; }
+
+        .carta {
+            width: 50px; height: 75px; background: white; color: black;
+            border-radius: 5px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font-weight: bold; 
+            font-size: 16px; border: 1px solid #999;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            position: relative; z-index: 2;
+        }
+
+        .manilha { border: 3px solid var(--gold) !important; box-shadow: 0 0 15px var(--gold); }
+        .manilha::after { content: "⭐"; position: absolute; top: -5px; right: -5px; font-size: 12px; }
+
+        .sul .carta:hover { transform: translateY(-10px); cursor: pointer; border-color: var(--accent); }
+        .verso { background: #2c3e50; border: 1px solid #1a252f; }
+
+        #centro-mesa {
+            width: 250px; height: 150px; background: rgba(0,0,0,0.05);
+            border-radius: 50%; display: flex; justify-content: center; align-items: center; gap: 10px;
+            position: relative;
+        }
+
+        #aviso-rodada {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 50; font-weight: 900; font-size: 24px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none; display: none; white-space: nowrap;
+        }
+
+        #modal-decisao {
+            position: absolute; z-index: 100; background: rgba(0,0,0,0.95);
+            padding: 20px; border-radius: 15px; border: 2px solid var(--accent);
+            display: none; flex-direction: column; align-items: center;
+        }
+
+        .controles-acoes {
+            position: absolute; bottom: 20px; right: 20px;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        #btn-truco, #btn-correr {
+            padding: 12px 25px; border: none; border-radius: 8px; 
+            color: white; font-weight: bold; cursor: pointer; display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: 0.2s;
+        }
+
+        #btn-truco { background: #e74c3c; }
+        #btn-correr { background: #555; font-size: 12px; }
+        #btn-correr:hover { background: #777; }
+
+        #btn-coberta {
+            position: absolute; top: 85px; left: 110%; transform: none;
+            padding: 8px 15px; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px;
+            background: rgba(0,0,0,0.5); color: #aaa; cursor: pointer; font-size: 10px;
+            transition: all 0.2s; display: none; z-index: 20; white-space: nowrap;
+        }
+        #btn-coberta.ativo {
+            background: var(--accent); color: black; border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent); font-weight: bold;
+        }
+
+        /* Menu Inicial */
+        #menu-inicial {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.9); z-index: 1000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .btn-menu {
+            padding: 20px 40px; margin: 10px; font-size: 20px; font-weight: bold;
+            border: none; border-radius: 10px; cursor: pointer; width: 300px;
+            transition: 0.3s; color: white;
+        }
+        .btn-vs-pc { background: #e67e22; }
+        .btn-online { background: #9b59b6; }
+        .btn-menu:hover { transform: scale(1.05); filter: brightness(1.2); }
+
+        #sala-info {
+            position: absolute; top: 10px; left: 10px; z-index: 50;
+            background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 5px; font-size: 12px;
+            display: none;
+        }
+
+        #lista-salas {
+            margin-top: 20px; width: 300px;
+            background: rgba(0,0,0,0.5); border-radius: 10px; padding: 10px;
+            max-height: 200px; overflow-y: auto; display: none;
+        }
+        .sala-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255,255,255,0.1); padding: 8px; margin-bottom: 5px; border-radius: 5px;
+        }
+        .sala-btn {
+            padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white;
+        }
+        .btn-entrar { background: #27ae60; }
+        .btn-ver { background: #2980b9; }
+
+        #modal-nome {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 2000;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+        #input-nome {
+            padding: 10px; font-size: 18px; border-radius: 5px; border: none; text-align: center;
+            margin-bottom: 10px; width: 250px;
+        }
+        
+        /* Estilos Avatares */
+        .avatar-option {
+            width: 50px; height: 50px; border-radius: 50%;
+            cursor: pointer; border: 3px solid transparent;
+            transition: 0.2s; background: #333; overflow:hidden;
+        }
+        .avatar-option:hover { transform: scale(1.1); }
+        .avatar-option.selected { border-color: var(--gold); box-shadow: 0 0 10px var(--gold); }
+        .avatar-option svg { width:100%; height:100%; }
+
+        .cadeira-lobby {
+            position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 80px; height: 80px; background: rgba(255,255,255,0.1);
+            border-radius: 50%; cursor: pointer; transition: 0.2s; border: 2px solid transparent;
+        }
+        .cadeira-lobby:hover { background: rgba(255,255,255,0.2); border-color: var(--accent); }
+        .cadeira-lobby span {
+            position: absolute; bottom: -25px; font-size: 12px; font-weight: bold; width: 120px; text-align: center;
+            background: rgba(0,0,0,0.5); padding: 2px 5px; border-radius: 4px; pointer-events: none;
+        }
+        .cadeira-lobby.ocupado { cursor: default; border-color: #555; background: rgba(0,0,0,0.5); }
+        .cadeira-lobby .avatar-preview { width: 60px; height: 60px; border-radius: 50%; overflow: hidden; display: none; }
+        .cadeira-lobby.ocupado .avatar-preview { display: block; }
+        
+        .avatar-mesa {
+            width: 50px; height: 50px; border-radius: 50%; border: 2px solid #fff;
+            background: #222; overflow: hidden; margin-bottom: 5px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            position: relative; z-index: 10;
+        }
+        .avatar-mesa svg { width:100%; height:100%; }
+        
+        /* Ajustar labels de jogadores para acomodar avatar */
+        .jogador .nome-j { margin-top: -10px; z-index: 11; font-size: 12px; }
+    </style>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+</head>
+<body>
+
+    <div id="painel-controle">
+        <div style="color:var(--cor-nos)">NÓS: <span id="p-nos" class="score">0</span></div>
+        <div style="color:var(--cor-eles)">ELES: <span id="p-eles" class="score">0</span></div>
+        
+        <div id="contador-rodadas">
+            <div id="queda-0" class="queda-dot"></div>
+            <div id="queda-1" class="queda-dot"></div>
+            <div id="queda-2" class="queda-dot"></div>
+        </div>
+
+        <hr style="opacity:0.2">
+        <div style="font-size:12px">VALE: <span id="valor-atual" style="color:var(--accent)">1</span></div>
+    </div>
+
+    <div id="mesa">
+        <button id="btn-start" onclick="reqIniciarPartida()" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); padding:15px 40px; cursor:pointer; font-weight:bold; background:var(--cor-nos); border:none; border-radius:10px; color:white; display: none; z-index:150; box-shadow: 0 0 20px rgba(0,0,0,0.5);">COMEÇAR JOGO</button>
+
+        <div id="modal-decisao">
+            <h3 id="titulo-modal">TRUCO!</h3>
+            <div style="display:flex; gap:10px;">
+                <button onclick="decisaoHumana(true)" style="background:var(--cor-nos); border:none; padding:8px 15px; border-radius:5px; cursor:pointer; color:white;">ACEITAR</button>
+                <button onclick="decisaoHumana(false)" style="background:var(--danger); border:none; padding:8px 15px; border-radius:5px; color:white; cursor:pointer;">CORRER</button>
+            </div>
+        </div>
+
+        <div id="vira-container">
+            <span style="font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.6);">VIRA</span>
+            <div id="vira-slot"><div class="baralho-decor"></div></div>
+        </div>
+
+        <div class="jogador norte" id="j2">
+            <div class="cartas"></div>
+            <span class="nome-j" style="color:var(--cor-nos)">PARCEIRO</span>
+            <span class="score-tag">0</span>
+        </div>
+        <div class="jogador oeste" id="j1">
+            <div class="cartas"></div>
+            <span class="nome-j" style="color:var(--cor-eles)">OPONENTE 1</span>
+            <span class="score-tag">0</span>
+        </div>
+        <div class="jogador leste" id="j3">
+            <div class="cartas"></div>
+            <span class="nome-j" style="color:var(--cor-eles)">OPONENTE 2</span>
+            <span class="score-tag">0</span>
+        </div>
+        <div class="jogador sul" id="j0">
+            <span class="nome-j" style="color:var(--cor-nos)">VOCÊ</span>
+            <span class="score-tag">0</span>
+            <div class="cartas"></div>
+            <button id="btn-coberta" onclick="toggleModoCoberta()">JOGAR COBERTA</button>
+        </div>
+
+        <div id="centro-mesa">
+            <div id="aviso-rodada"></div>
+        </div>
+    </div>
+
+    <div class="controles-acoes">
+        <button id="btn-correr" onclick="fugirMao()">CORRER (DESISTIR)</button>
+        <button id="btn-truco" onclick="pedirTruco()">TRUCO!</button>
+    </div>
+
+    <div id="sala-info">Modo: Offline</div>
+    <button id="btn-sair" onclick="location.reload()" style="position:absolute; top:10px; right:10px; z-index:50; background:#e74c3c; color:white; border:none; padding:5px 15px; border-radius:5px; cursor:pointer; font-weight:bold; display:none;">SAIR</button>
+
+    <div id="menu-inicial">
+        <h1 style="font-size: 60px; margin-bottom: 40px; color: var(--gold); text-shadow: 0 0 20px var(--gold);">TRUCO PRO</h1>
+        <button class="btn-menu btn-vs-pc" onclick="iniciarOffline()">JOGAR VS COMPUTADOR</button>
+        <button class="btn-menu btn-online" onclick="prepararCriarSala()">CRIAR SALA ONLINE</button>
+        
+        <div id="lista-salas"></div>
+
+        <div id="status-conexao" style="margin-top: 20px; color: #aaa;"></div>
+    </div>
+
+    <div id="modal-nome">
+        <h2 style="color:var(--gold)">IDENTIDADE</h2>
+        <input type="text" id="input-nome" placeholder="Seu Nickname..." maxlength="10">
+        
+        <div style="margin: 10px 0; text-align:center;">
+            <p style="font-size:12px; color:#aaa; margin-bottom:5px;">ESCOLHA SEU AVATAR</p>
+            <div id="grid-avatares" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; width:300px;">
+                <!-- Avatares injetados via JS -->
+            </div>
+        </div>
+
+        <button class="btn-menu btn-online" style="width:200px" onclick="confirmarNome()">ENTRAR</button>
+        <button onclick="cancelarNome()" style="background:transparent; border:none; color:#aaa; cursor:pointer; margin-top:10px;">Cancelar</button>
+    </div>
+
+    <!-- UI: Lobby da Sala (Escolha de Lugar) -->
+    <div id="lobby-sala" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:900; flex-direction:column; align-items:center; justify-content:center;">
+        <h2 id="lobby-titulo" style="color:var(--gold); font-size:30px;">SALA X</h2>
+        <p style="color:#ccc; font-size:14px; margin-bottom:30px;">Escolha um lugar na mesa</p>
+        
+        <div style="position:relative; width:400px; height:400px; border:2px dashed #333; border-radius:50%;">
+            <!-- Cadeiras -->
+            <div class="cadeira-lobby" id="seat-2" onclick="tentarSentar(2)" style="top:-60px; left:50%; transform:translateX(-50%);">
+                <div class="avatar-preview"></div>
+                <span>FRENTE (Parceiro)</span>
+            </div>
+            <div class="cadeira-lobby" id="seat-1" onclick="tentarSentar(1)" style="top:50%; left:-60px; transform:translateY(-50%);">
+                <div class="avatar-preview"></div>
+                <span>ESQUERDA (Adv)</span>
+            </div>
+            <div class="cadeira-lobby" id="seat-3" onclick="tentarSentar(3)" style="top:50%; right:-60px; transform:translateY(-50%);">
+                <div class="avatar-preview"></div>
+                <span>DIREITA (Adv)</span>
+            </div>
+            <div class="cadeira-lobby" id="seat-0" onclick="tentarSentar(0)" style="bottom:-60px; left:50%; transform:translateX(-50%);">
+                <div class="avatar-preview"></div>
+                <span>VOCÊ (Sul)</span>
+            </div>
+            
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:#555; font-weight:bold;">MESA</div>
+        </div>
+
+        <div style="margin-top:50px; display:flex; gap:20px;">
+            <button class="btn-menu" style="background:#555; width:auto; font-size:16px;" onclick="sairDaSala()">SAIR DA SALA</button>
+            <button id="btn-iniciar-lobby" class="btn-menu disabled" style="background:var(--cor-nos); width:auto; font-size:16px; opacity:0.5; cursor:not-allowed;" onclick="requestStartGame()" disabled>AGUARDANDO...</button>
+        </div>
+    </div>
+
+    <!-- Container para balões de fala -->
+    <div id="camada-baloes" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:150;"></div>
+
+    <script>
+        const naipes = ['♦', '♠', '♥', '♣'];
+        const ordemTruco = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'];
+        
+        // --- AVATARES SVG (Design Minimalista com Cores) ---
+        const AVATARS = [
+            // 0: Boy 1 (Blue)
+            `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#3498db"/><circle cx="50" cy="40" r="20" fill="#f1c40f"/><rect x="30" y="70" width="40" height="30" rx="15" fill="#ecf0f1"/><circle cx="43" cy="38" r="3" fill="#333"/><circle cx="57" cy="38" r="3" fill="#333"/><path d="M40 50 Q50 58 60 50" stroke="#333" stroke-width="2" fill="none"/></svg>`,
+            // 1: Girl 1 (Pink)
+            `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#e91e63"/><circle cx="50" cy="40" r="20" fill="#f1c40f"/><path d="M30 30 Q50 10 70 30" fill="#3e2723"/><rect x="30" y="70" width="40" height="30" rx="15" fill="#ecf0f1"/><circle cx="43" cy="38" r="3" fill="#333"/><circle cx="57" cy="38" r="3" fill="#333"/><path d="M40 50 Q50 58 60 50" stroke="#333" stroke-width="2" fill="none"/></svg>`,
+            // 2: Man (Green)
+            `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#2ecc71"/><circle cx="50" cy="40" r="20" fill="#d35400"/><rect x="30" y="70" width="40" height="30" rx="15" fill="#333"/><circle cx="43" cy="38" r="3" fill="#fff"/><circle cx="57" cy="38" r="3" fill="#fff"/><rect x="38" y="30" width="24" height="6" fill="#333"/></svg>`,
+            // 3: Robot (Purple)
+            `<svg viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="80" rx="20" fill="#9b59b6"/><rect x="30" y="30" width="15" height="15" fill="#ecf0f1"/><rect x="55" y="30" width="15" height="15" fill="#ecf0f1"/><rect x="30" y="60" width="40" height="10" rx="5" fill="#f1c40f"/></svg>`,
+            // 4: Ninja (Black)
+            `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#2c3e50"/><rect x="25" y="35" width="50" height="20" rx="5" fill="#ecf0f1"/><circle cx="40" cy="45" r="3" fill="#333"/><circle cx="60" cy="45" r="3" fill="#333"/></svg>`,
+            // 5: Punk (Orange)
+            `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#e67e22"/><path d="M40 10 L50 30 L60 10" fill="#f1c40f"/><circle cx="50" cy="45" r="22" fill="#ecf0f1"/><circle cx="42" cy="45" r="4" fill="#333"/><circle cx="58" cy="45" r="4" fill="#333"/><path d="M45 60 Q50 65 55 60" stroke="#333" stroke-width="2" fill="none"/></svg>`,
+            // 6: Granny (Gray)
+            `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#95a5a6"/><circle cx="50" cy="45" r="20" fill="#f1c40f"/><path d="M30 30 Q50 20 70 30" fill="#ecf0f1"/><circle cx="40" cy="45" r="8" stroke="#333" stroke-width="2" fill="none"/><circle cx="60" cy="45" r="8" stroke="#333" stroke-width="2" fill="none"/><path d="M45 60 L55 60" stroke="#333" stroke-width="2"/></svg>`,
+            // 7: Alien (Green)
+            `<svg viewBox="0 0 100 100"><path d="M20 50 Q50 -10 80 50 Q50 110 20 50" fill="#27ae60"/><ellipse cx="40" cy="45" rx="5" ry="8" fill="#000" transform="rotate(-20 40 45)"/><ellipse cx="60" cy="45" rx="5" ry="8" fill="#000" transform="rotate(20 60 45)"/></svg>`
+        ];
+
+        // Novas Globais
+        const frasesTruco = [
+            "Truco, marreco!",
+            "Truco, pato!",
+            "Pede seis ou corre!",
+            "Caiu na lagoa é pato!",
+            "Segura esse zap!",
+            "Bate na mesa e grita!",
+            "Essa nem o juiz roubando!",
+            "Tremeu a perna?",
+            "Vai correr ou vai encarar?"
+        ];
+        let statsJogadores = [
+            { g: 0, p: 0 }, { g: 0, p: 0 }, { g: 0, p: 0 }, { g: 0, p: 0 }
+        ];
+
+        let maos = [[], [], [], []], jogadasMesa = [], turnoAtual = 0, manilhaValor = "";
+        let placarGeral = { nos: 0, eles: 0 }, quedasNaMao = { nos: 0, eles: 0, total: 0 };
+        let valorMao = 1, quemPodeAumentar = "todos";
+        let modoCartaCoberta = false;
+        let jogadorQueComeca = 0; 
+
+        // Multiplayer States
+        let isOnline = false;
+        let socket = null;
+        let mySlot = -1; // -1 = Lobby/Spectator
+        let roomId = null;
+        let isRoomCreator = false; // "Host" logico (Slot 0 geralmente)
+        let myName = ""; 
+        let selectedAvatarId = 0; // Default
+        let pendingRoomAction = null; 
+
+        // Inicializar
+        window.onload = () => {
+             renderGridAvatares(); // Renderizar opções no modal
+
+             if (typeof io !== 'undefined') {
+                 // Para produção, substitua a URL abaixo pela URL do seu backend no Render/Railway
+                 // Exemplo: const socketUrl = 'https://meu-truco-server.onrender.com';
+                 const socketUrl = window.location.hostname === 'localhost' ? '' : 'URL_DO_SEU_BACKEND_AQUI';
+                 
+                 // Se ainda não tiver backend, tente conectar na mesma origem (para teste local ou se backend = frontend em hospedagem VPS)
+                 socket = io(socketUrl || undefined);
+                 
+                 socket.on('connect', () => {
+                     document.getElementById('status-conexao').innerText = "Conectado ao Lobby";
+                 });
+                 
+                 socket.on('room_list_update', (list) => {
+                     const div = document.getElementById('lista-salas');
+                     div.style.display = 'block';
+                     div.innerHTML = '<h3 style="margin:0 0 10px 0; font-size:14px; text-align:center;">SALAS DISPONÍVEIS</h3>';
+                     
+                     if(list.length === 0) {
+                         div.innerHTML += '<div style="text-align:center; font-size:12px; color:#aaa;">Nenhuma sala criada.</div>';
+                         return;
+                     }
+
+                     list.forEach(sala => {
+                         const item = document.createElement('div');
+                         item.className = 'sala-item';
+                         // Mostra nome amigavel se existir
+                         const nomeSala = sala.name || `Sala ${sala.id}`;
+                         
+                         item.innerHTML = `
+                             <span style="font-size:12px; font-weight:bold;">${nomeSala} (${sala.count}/4)</span>
+                             <button class="sala-btn btn-entrar" onclick="prepararEntrarSala('${sala.id}')">ENTRAR</button>
+                         `;
+                         div.appendChild(item);
+                     });
+                 });
+
+                 setupSocketListeners();
+             }
+
+             const urlParams = new URLSearchParams(window.location.search);
+             const roomParam = urlParams.get('room');
+             if(roomParam) {
+                 prepararEntrarSala(roomParam);
+             }
+        };
+
+        function renderGridAvatares() {
+            const grid = document.getElementById('grid-avatares');
+            grid.innerHTML = '';
+            AVATARS.forEach((svg, idx) => {
+                const el = document.createElement('div');
+                el.className = 'avatar-option';
+                if(idx === selectedAvatarId) el.classList.add('selected');
+                el.innerHTML = svg;
+                el.onclick = () => {
+                    selectedAvatarId = idx;
+                    document.querySelectorAll('.avatar-option').forEach(d => d.classList.remove('selected'));
+                    el.classList.add('selected');
+                };
+                grid.appendChild(el);
+            });
+        }
+        
+        // --- Fluxo de Nome ---
+        function prepararCriarSala() {
+            pendingRoomAction = { type: 'create' };
+            abrirModalNome();
+        }
+
+        function prepararEntrarSala(id) {
+            pendingRoomAction = { type: 'join', roomId: id };
+            abrirModalNome();
+        }
+
+        function abrirModalNome() {
+            document.getElementById('modal-nome').style.display = 'flex';
+            document.getElementById('input-nome').focus();
+        }
+
+        function cancelarNome() {
+            document.getElementById('modal-nome').style.display = 'none';
+            pendingRoomAction = null;
+        }
+
+        function confirmarNome() {
+            const nome = document.getElementById('input-nome').value.trim();
+            if(!nome) { alert("Digite um nome!"); return; }
+            myName = nome;
+            document.getElementById('modal-nome').style.display = 'none';
+            
+            if(pendingRoomAction.type === 'create') {
+                criarSalaOnline();
+            } else if (pendingRoomAction.type === 'join') {
+                entrarSalaOnline(pendingRoomAction.roomId);
+            }
+        }
+
+        function criarSalaOnline() {
+            if(!socket) { alert("Erro de conexão com servidor!"); return; }
+            console.log("Solicitando criação de sala para: " + myName);
+            // Emite criacao e aguarda room_created para entrar
+            socket.emit('create_room', { playerName: myName });
+            socket.once('room_created', (data) => {
+                console.log("Sala criada com ID: " + data.roomId);
+                entrarSalaOnline(data.roomId);
+            });
+        }
+
+        function entrarSalaOnline(id) {
+            if(!socket) { alert("Erro de conexão com servidor!"); return; }
+            isOnline = true;
+            roomId = id;
+            document.getElementById('menu-inicial').style.display = 'none';
+            document.getElementById('btn-sair').style.display = 'block'; // Mostrar Botão Sair
+            console.log("Entrando na sala: " + id);
+            // Em vez de ir direto pro jogo, envia stats e espera room_state (Lobby)
+            socket.emit('join_room', { roomId, playerName: myName, avatarId: selectedAvatarId });
+        }
+        
+        // --- Ações do Lobby ---
+        function tentarSentar(slot) {
+            socket.emit('sit_down', { roomId, slot });
+        }
+        function sairDaSala() {
+            location.reload(); // Maneira mais limpa de resetar tudo
+        }
+        function requestStartGame() {
+            socket.emit('request_start_game', { roomId });
+        }
+
+        // --- MAPA DE JOGADORES NO LOBBY/MESA ---
+        let currentRoomState = null;
+
+        function setupSocketListeners() {
+            socket.on('room_state', (state) => {
+                // Entrou na sala (modo Lobby)
+                currentRoomState = state;
+                roomId = state.roomId;
+                document.getElementById('lobby-sala').style.display = 'flex';
+                document.getElementById('lobby-titulo').innerText = state.roomName;
+                renderLobbySeats(state.players);
+            });
+
+            socket.on('update_players', (players) => {
+                // Atualização de quem esta sentado
+                renderLobbySeats(players);
+                // Se o jogo ja começou, renderiza mesa também?
+                // Sim, update_players é usado para nomes
+                window.currentPlayers = players;
+                atualizarNomesVisuais();
+            });
+
+            socket.on('sit_error', (msg) => alert(msg));
+            
+            socket.on('remote_game_start', () => {
+                document.getElementById('lobby-sala').style.display = 'none';
+                document.getElementById('sala-info').style.display = 'block';
+                document.getElementById('sala-info').innerText = `Sala: ${roomId}`;
+                iniciarPartida(true);
+            });
+            
+            // ... Mantedo compatibilidade de listeners antigos ...
+            socket.on('player_disco', (data) => {
+                 // Alguem saiu
+                 if(isOnline && document.getElementById('lobby-sala').style.display === 'none') {
+                     // Se em jogo, avisar
+                     alert(`${data.name} desconectou!`);
+                 }
+            });
+            
+            // Listeners de jogo...
+            socket.on('receber_mao', (data) => {
+                // { maos, vira, manilhaValor, jogadorQueComeca }
+                maos = data.maos;
+                // vira é obj {v,n,cor}
+                // vira-slot
+                const viraSlot = document.getElementById('vira-slot');
+                viraSlot.querySelectorAll('.carta').forEach(c => c.remove());
+                viraSlot.appendChild(criarCardUI(data.vira, true));
+                
+                manilhaValor = data.manilhaValor;
+                jogadorQueComeca = data.jogadorQueComeca;
+                
+                iniciarPartida(true);
+            });
+
+            socket.on('jogada_remota', (data) => {
+                // { j, c, p, isCoberta }
+                // Remover carta da mao visual do oponente (ou nossa caso bug?)
+                // Se j != mySlot (ja removi a minha no jogar())
+                if(data.j !== mySlot) {
+                    // Remover uma carta randon da mao do oponente
+                    maos[data.j].pop();
+                }
+                
+                jogadasMesa.push(data);
+                const div = criarCardUI(data.c, !data.isCoberta);
+                div.style.transform = `rotate(${Math.random() * 20 - 10}deg)`;
+                document.getElementById('centro-mesa').appendChild(div);
+                
+                renderMao(data.j); 
+                
+                turnoAtual = (turnoAtual + 1) % 4; // Errado, truco é +1 ou +3? 0,1,2,3.
+                // Ordem padrao: 0->1->2->3 (anti-horario visual? server order is 0,1,2,3)
+                // Se server order é 0,1,2,3:
+                // turnoAtual = (turnoAtual + 1) % 4; // Sim
+                // A logica anterior dizia +3. Vamos assumir +1.
+                // Corrigindo logica do server:
+                // Se ordem é 0->1->2->3, entao:
+                
+                if (jogadasMesa.length < 4) proximoPasso(); else resolver();
+            });
+        }
+
+        function renderLobbySeats(players) {
+            let myPlayer = null;
+            let occupiedCount = 0;
+            
+            // varrer slots 0..3
+            for(let i=0; i<4; i++) {
+                const p = players[i];
+                const seatDiv = document.getElementById(`seat-${i}`);
+                const preview = seatDiv.querySelector('.avatar-preview');
+                const label = seatDiv.querySelector('span');
+                
+                // Limpar estados CSS
+                seatDiv.classList.remove('ocupado');
+                preview.innerHTML = '';
+                
+                if(p) {
+                    // Ocupado
+                    occupiedCount++;
+                    seatDiv.classList.add('ocupado');
+                    preview.innerHTML = AVATARS[p.avatarId] || AVATARS[0];
+                    label.innerText = p.name + (p.id === socket.id ? " (VOCÊ)" : "");
+                    if(p.id === socket.id) myPlayer = { slot: i, ...p };
+                } else {
+                    // Vazio
+                    const roles = ["VOCÊ (Sul)", "ESQUERDA (Oeste)", "FRENTE (Parceiro)", "DIREITA (Leste)"];
+                    label.innerText = roles[i] + " - LIVRE";
+                }
+            }
+
+            // Atualizar globais
+            if(myPlayer) {
+                mySlot = myPlayer.slot;
+            } else {
+                mySlot = -1;
+            }
+
+            // Botão Iniciar (Só Host em Slot 0, se tiver 4)
+            const btnStart = document.getElementById('btn-iniciar-lobby');
+            if(mySlot === 0) {
+                 btnStart.innerText = `INICIAR (${occupiedCount}/4)`;
+                 if(occupiedCount === 4) {
+                     btnStart.classList.remove('disabled');
+                     btnStart.disabled = false;
+                     btnStart.style.opacity = '1';
+                     btnStart.style.cursor = 'pointer';
+                 } else {
+                     btnStart.classList.add('disabled');
+                     btnStart.disabled = true;
+                     btnStart.style.opacity = '0.5';
+                 }
+            } else {
+                btnStart.innerText = "AGUARDANDO HOST...";
+                btnStart.disabled = true;
+                btnStart.style.opacity = '0.5';
+            }
+        }
+
+        function iniciarOffline() {
+            isOnline = false;
+            document.getElementById('menu-inicial').style.display = 'none';
+            document.getElementById('sala-info').style.display = 'block';
+            document.getElementById('btn-sair').style.display = 'block'; // Mostrar Botão Sair
+            document.getElementById('sala-info').innerText = "Modo: Offline (Vs CPU)";
+            document.getElementById('btn-start').style.display = 'block';
+            
+            // Gerar nomes aleatórios para os bots
+            const nomesBots = ["Tonhão", "Zé da Manga", "Chico Bento", "Tião", "Jurema", "Lampiao", "Maria Bonita", "Jacinto", "Cabo Daciolo", "Tiririca"];
+            const escolhidos = [];
+            
+            // Eu:
+            const eu = { name: "Você", avatarId: 0, id: 'local' };
+            const botsMap = { 0: eu };
+
+            while(escolhidos.length < 3) {
+                const r = nomesBots[Math.floor(Math.random() * nomesBots.length)];
+                if(!escolhidos.includes(r)) escolhidos.push(r);
+            }
+            // Slots 1, 2, 3
+            for(let i=1; i<=3; i++) {
+                botsMap[i] = {
+                    name: escolhidos[i-1],
+                    avatarId: Math.floor(Math.random() * AVATARS.length),
+                    id: 'bot'+i
+                };
+            }
+            
+            window.currentPlayers = botsMap;
+            mySlot = 0; // Offline sempre 0
+            
+            atualizarNomesVisuais();
+            
+            document.getElementById('btn-start').innerText = "COMEÇAR JOGO";
+            document.getElementById('btn-start').disabled = false;
+        }
+
+        function atualizarNomesVisuais() {
+             // Base: mySlot
+             // Visao: Sul(0), Oeste(1), Norte(2), Leste(3) VISUAIS
+             // Se mySlot = 0: 
+             // Visual Sul(0) <- Server 0
+             // Visual Oeste(1) <- Server 1 (Direita? Nao, anti-horario: 0->1->2->3)
+             // Se jogo roda anti-horario: 0 joga, depois 1. Entao 1 está a direita de 0.
+             // Mesa de Truco: J0, J1(Dir), J2(Frente), J3(Esq).
+             // SE J1 é o próximo a jogar, ele está a direita.
+             
+             // Vamos convencionar:
+             // HTML: j0 (Sul/Voce), j1(Oeste/Esq), j3(Leste/Dir), j2(Norte/Frente)
+             // Server Order: 0 -> 1 -> 2 -> 3
+             // Se 0 joga, o proximo é 1.
+             // Se rodar anti-horario, o proximo é direita. Entao 1 é Direita (Leste).
+             // 2 é Frente (Norte).
+             // 3 é Esquerda (Oeste).
+             
+             // Então Mapping:
+             // Server 0 (Eu) -> j0 (Sul)
+             // Server 1 (Dir) -> j3 (Leste)
+             // Server 2 (Frente) -> j2 (Norte)
+             // Server 3 (Esq) -> j1 (Oeste)
+             
+             // Formula: delta = serverIdx - mySlot (+4 %4)
+             // delta 0 -> j0
+             // delta 1 -> j3
+             // delta 2 -> j2
+             // delta 3 -> j1
+             
+             const mapId = ['j0', 'j3', 'j2', 'j1'];
+             // indices: 0(sul), 1(leste/dir), 2(norte), 3(oeste/esq)
+             
+             const baseSlot = (mySlot === -1) ? 0 : mySlot;
+
+             document.querySelectorAll('.nome-j').forEach(e => e.innerText = "VAZIO");
+             document.querySelectorAll('.avatar-mesa').forEach(e => e.remove());
+             
+             if(window.currentPlayers) {
+                 for(let i=0; i<4; i++) {
+                     if(window.currentPlayers[i]) {
+                         const delta = (i - baseSlot + 4) % 4;
+                         // delta=0(Eu) -> mapId[0]=j0. 
+                         // delta=1(Dir) -> mapId[1]=j3.
+                         
+                         const elId = mapId[delta];
+                         const el = document.getElementById(elId);
+                         if(!el) return;
+                         
+                         let display = window.currentPlayers[i].name;
+                         if(i === 0 && isOnline) display += " (Host)";
+                         
+                         el.querySelector('.nome-j').innerText = display;
+                         // Avatar
+                         const avatarDiv = document.createElement('div');
+                         avatarDiv.className = 'avatar-mesa';
+                         avatarDiv.innerHTML = AVATARS[window.currentPlayers[i].avatarId] || AVATARS[0];
+                         el.prepend(avatarDiv); // add top
+                     }
+                 }
+             }
+        }
+        
+        function renderMao(serverIdx) {
+            // Usa mesma lógica visual:
+            // delta 0 -> j0, 1 -> j3, 2 -> j2, 3 -> j1.
+            const mapId = ['j0', 'j3', 'j2', 'j1'];
+            
+            const baseSlot = (mySlot === -1) ? 0 : mySlot;
+            const delta = (serverIdx - baseSlot + 4) % 4;
+            const elId = mapId[delta];
+            
+            const cont = document.querySelector(`#${elId} .cartas`);
+            if(!cont) return;
+            cont.innerHTML = '';
+            
+            if(!maos[serverIdx]) return;
+
+            maos[serverIdx].forEach((c, idx) => {
+                if (!c) return; 
+                // Se é minha vez de ver?
+                // Se sou eu (delta=0) -> Vejo Frente.
+                // Se sou outro -> Vejo Verso.
+                // Se offline -> Eu vejo Frente, outros Verso.
+                
+                const isMe = (delta === 0);
+                // Espectador (mySlot -1): delta nunca sera 0 se baseSlot=0 e serverIdx=0? 
+                // Se espectador, should see verso or front? Verso.
+                
+                const showFront = isMe; 
+                
+                const el = criarCardUI(c, showFront); 
+                if(showFront) el.onclick = () => jogar(serverIdx, idx);
+                cont.appendChild(el);
+            });
+        }
+        
+        function reqIniciarPartida() {
+            if(isOnline) {
+                // ...
+            } else {
+                iniciarPartida();
+            }
+        }
+
+        function iniciarPartida(remoteStart = false) {
+            document.getElementById('btn-start').style.display = 'none';
+            document.getElementById('centro-mesa').innerHTML = '<div id="aviso-rodada"></div>';
+            document.getElementById('btn-correr').style.display = 'none';
+            document.getElementById('btn-truco').style.display = 'none';
+            document.getElementById('btn-coberta').style.display = 'none';
+            modoCartaCoberta = false;
+            document.getElementById('btn-coberta').classList.remove('ativo');
+            
+            quedasNaMao = { nos: 0, eles: 0, total: 0 };
+            for (let i = 0; i < 3; i++) document.getElementById(`queda-${i}`).className = 'queda-dot';
+            
+            valorMao = 1;
+            quemPodeAumentar = "todos";
+            document.getElementById('valor-atual').innerText = 1;
+            document.getElementById('btn-truco').innerText = "TRUCO!";
+            
+            // Se online e eu nao tenho dados ainda (remoteStart true ja tratou isso)
+            if(isOnline && !remoteStart) return; 
+
+            // Se Offline, gerar dados:
+            if(!isOnline) {
+                let baralho = [];
+                for (let n of naipes) for (let v of ordemTruco) baralho.push({ v, n, cor: (n==='♦'||n==='♥')?'#e74c3c':'#333' });
+                baralho.sort(() => Math.random() - 0.5);
+
+                const vira = baralho.pop();
+                manilhaValor = ordemTruco[(ordemTruco.indexOf(vira.v) + 1) % 10];
+                const viraSlot = document.getElementById('vira-slot');
+                viraSlot.querySelectorAll('.carta').forEach(c => c.remove());
+                viraSlot.appendChild(criarCardUI(vira, true));
+
+                // Distribuir
+                for (let i = 0; i < 4; i++) {
+                    maos[i] = [baralho.pop(), baralho.pop(), baralho.pop()];
+                }
+                
+                turnoAtual = jogadorQueComeca;
+            }
+
+            // Renderizar localmente
+            for(let i=0; i<4; i++) renderMao(i);
+            
+            // Mostrar placares individuais
+            document.querySelectorAll('.score-tag').forEach(el => el.style.display = 'block');
+            atualizarPlacaresVisuais();
+
+            proximoPasso();
+        }
+
+        function criarCardUI(c, visivel) {
+            const div = document.createElement('div');
+            div.className = 'carta';
+            if (visivel) {
+                div.style.color = c.cor;
+                div.innerHTML = `<span>${c.v}</span><span>${c.n}</span>`;
+                if (c.v === manilhaValor) div.classList.add('manilha');
+            } else { div.classList.add('verso'); }
+            return div;
+        }
+
+        function toggleModoCoberta() {
+            modoCartaCoberta = !modoCartaCoberta;
+            const btn = document.getElementById('btn-coberta');
+            if(modoCartaCoberta) btn.classList.add('ativo'); else btn.classList.remove('ativo');
+        }
+
+        async function jogar(j, idx) {
+            if (j !== turnoAtual) {
+                console.warn("Não é sua vez de jogar!");
+                return;
+            }
+
+            if(isOnline && j !== mySlot) return; // Segurança
+
+            document.getElementById('btn-truco').style.display = 'none';
+            document.getElementById('btn-correr').style.display = 'none';
+            document.getElementById('btn-coberta').style.display = 'none';
+
+            const c = maos[j][idx]; 
+            maos[j].splice(idx, 1); 
+
+            let p = ordemTruco.indexOf(c.v) + (c.v === manilhaValor ? 100 : 0);
+            if(c.v === manilhaValor) p += naipes.indexOf(c.n);
+
+            let isCoberta = false;
+            // Se offline ou online meu:
+            if ((!isOnline && j===0 && modoCartaCoberta) || (isOnline && j===mySlot && modoCartaCoberta)) {
+                isCoberta = true;
+                p = -1; 
+                modoCartaCoberta = false;
+                document.getElementById('btn-coberta').classList.remove('ativo');
+            }
+            
+            if(isOnline) {
+                 // socket.emit('jogar_carta', ...)
+            }
+
+            jogadasMesa.push({ j, p, c, isCoberta });
+            const div = criarCardUI(c, !isCoberta);
+            div.style.transform = `rotate(${Math.random() * 20 - 10}deg)`;
+            document.getElementById('centro-mesa').appendChild(div);
+            
+            renderMao(j);
+            
+            // Server Order: 0->1->2->3
+            turnoAtual = (turnoAtual + 1) % 4; 
+            if (jogadasMesa.length < 4) proximoPasso(); else resolver();
+        }
+
+        async function proximoPasso() {
+            if(isOnline) {
+                if(turnoAtual === mySlot) {
+                    document.getElementById('btn-correr').style.display = 'block';
+                    if(valorMao < 12) document.getElementById('btn-truco').style.display = 'block';
+                    const cartasRestantes = maos[mySlot] ? maos[mySlot].length : 0;
+                    if (cartasRestantes === 2) document.getElementById('btn-coberta').style.display = 'block';
+                }
+                return; 
+            }
+
+            // Offline Logic (Vs CPU)
+            if (turnoAtual === 0) {
+                document.getElementById('btn-correr').style.display = 'block';
+                if ((quemPodeAumentar === "todos" || quemPodeAumentar === "nos") && valorMao < 12) {
+                    document.getElementById('btn-truco').style.display = 'block';
+                }
+                const cartasRestantes = maos[0].filter(c => c !== null).length;
+                if (cartasRestantes === 2) {
+                    document.getElementById('btn-coberta').style.display = 'block';
+                } else {
+                    document.getElementById('btn-coberta').style.display = 'none';
+                }
+            } else {
+                await new Promise(r => setTimeout(r, 800));
+                // IA Logic
+                if ((quemPodeAumentar === "todos" || quemPodeAumentar === "eles") && valorMao < 12 && Math.random() > 0.98) {
+                    iaPedeAumento();
+                } else {
+                    if(maos[turnoAtual] && maos[turnoAtual].length > 0) {
+                        jogar(turnoAtual, 0); // Joga a primeira carta
+                    }
+                }
+            }
+        }
+
+        function fugirMao() {
+            if(confirm("Deseja realmente correr desta mão? Eles ganharão os pontos atuais.")) {
+                finalizarMao('eles', valorMao);
+            }
+        }
+
+        function getProximoValor(atual) {
+            return atual === 1 ? 3 : (atual >= 12 ? 12 : atual + 3);
+        }
+
+        let provocacaoInterval = null;
+        const frasesProvocacao = [
+            "Tá pensando por que tá com medo?",
+            "Se pensar vai correr!",
+            "Tá tremendo é?",
+            "Vai amarelar?",
+            "Aceita logo, pato!",
+            "O medo tem cheiro!",
+            "Pede 6 logo se tiver coragem!"
+        ];
+
+        function pedirTruco() {
+            let nV = getProximoValor(valorMao);
+            document.getElementById('btn-truco').style.display = 'none';
+            document.getElementById('btn-correr').style.display = 'none';
+            document.getElementById('btn-coberta').style.display = 'none';
+            
+            const frase = frasesTruco[Math.floor(Math.random() * frasesTruco.length)];
+            mostrarBalaoFala(mySlot !== -1 ? mySlot : 0, frase);
+
+            // Iniciar provocações
+            if (provocacaoInterval) clearInterval(provocacaoInterval);
+            provocacaoInterval = setInterval(() => {
+                const pFrase = frasesProvocacao[Math.floor(Math.random() * frasesProvocacao.length)];
+                mostrarBalaoFala(mySlot !== -1 ? mySlot : 0, pFrase);
+            }, 5000);
+
+            setTimeout(() => {
+                clearInterval(provocacaoInterval); // Parar provocações ao responder
+                if(Math.random() > 0.4) {
+                    valorMao = nV; quemPodeAumentar = "eles";
+                    document.getElementById('valor-atual').innerText = valorMao;
+                    document.getElementById('btn-truco').innerText = `PEDIR ${getProximoValor(valorMao)}`;
+                    alert(`ELES ACEITARAM O ${valorMao}!`);
+                    proximoPasso();
+                } else { alert("ELES CORRERAM!"); finalizarMao('nos', valorMao); }
+            }, 10000); // Aumentei para 10s para dar tempo de ver as provocações
+        }
+
+        function iaPedeAumento() {
+            let nV = getProximoValor(valorMao);
+            const frase = frasesTruco[Math.floor(Math.random() * frasesTruco.length)];
+            mostrarBalaoFala(turnoAtual, frase);
+
+            setTimeout(() => {
+                document.getElementById('titulo-modal').innerText = nV === 3 ? "TRUCO!" : `PEDIU ${nV}!`;
+                document.getElementById('modal-decisao').style.display = 'flex';
+            }, 1000);
+        }
+
+        function decisaoHumana(aceitou) {
+            document.getElementById('modal-decisao').style.display = 'none';
+            if(aceitou) {
+                valorMao = getProximoValor(valorMao); quemPodeAumentar = "nos";
+                document.getElementById('valor-atual').innerText = valorMao;
+                document.getElementById('btn-truco').innerText = `PEDIR ${getProximoValor(valorMao)}`;
+                
+                // IA Joga apos aceite
+                if(maos[turnoAtual] && maos[turnoAtual].length > 0) jogar(turnoAtual, 0);
+
+            } else { finalizarMao('eles', valorMao); }
+        }
+
+        async function resolver() {
+            // Quem ganhou a rodada?
+            // jogadasMesa: [{j, p, c}, ...]
+            // melhor p.
+            // Se empatar a maior -> Ganha quem 'torna' (primeiro a jogar a maior)?
+            // Regra Truco Padrao: Empate na 1a: Ninguem (cangalha) ou ganha 2a?
+            // Simplificado: Maior P leva. Se P igual: Empate.
+            // Se empate: Vamos dar vitoria pro primeiro que jogou a maior por enquanto.
+            
+            let melhor = jogadasMesa[0];
+            for(let i=1; i<4; i++) {
+                if(jogadasMesa[i].p > melhor.p) melhor = jogadasMesa[i];
+            }
+            
+            let v = melhor.j;
+            
+            // Times: Nos(0,2), Eles(1,3)
+            let vencedorRodada = (v === 0 || v === 2) ? 'nos' : 'eles';
+            
+            const aviso = document.getElementById('aviso-rodada');
+            aviso.innerText = vencedorRodada === 'nos' ? "NÓS LEVAMOS!" : "ELES LEVARAM!";
+            aviso.style.color = vencedorRodada === 'nos' ? 'var(--cor-nos)' : 'var(--cor-eles)';
+            aviso.style.display = 'block';
+
+            let dot = document.getElementById(`queda-${quedasNaMao.total}`);
+            if (vencedorRodada === 'nos') { quedasNaMao.nos++; dot.classList.add('queda-nos'); } 
+            else { quedasNaMao.eles++; dot.classList.add('queda-eles'); }
+            
+            quedasNaMao.total++;
+            turnoAtual = v; // Quem ganha torna
+            
+            await new Promise(r => setTimeout(r, 1800));
+            aviso.style.display = 'none';
+            document.getElementById('centro-mesa').innerHTML = '<div id="aviso-rodada"></div>'; 
+            jogadasMesa = [];
+            
+            if (quedasNaMao.nos === 2 || quedasNaMao.eles === 2) {
+                finalizarMao(quedasNaMao.nos === 2 ? 'nos' : 'eles', valorMao);
+            } else { proximoPasso(); }
+        }
+
+        function finalizarMao(vencedor, pontos) {
+            // Atualizar Stats Individuais
+            const indicesNos = [0, 2];
+            const indicesEles = [1, 3];
+            
+            if(vencedor === 'nos') {
+                indicesNos.forEach(i => statsJogadores[i].g += pontos);
+                indicesEles.forEach(i => statsJogadores[i].p += pontos);
+            } else {
+                indicesEles.forEach(i => statsJogadores[i].g += pontos);
+                indicesNos.forEach(i => statsJogadores[i].p += pontos);
+            }
+
+            placarGeral[vencedor] += pontos;
+            atualizarPlacaresVisuais();
+
+            document.getElementById('p-nos').innerText = placarGeral.nos;
+            document.getElementById('p-eles').innerText = placarGeral.eles;
+            
+            if (placarGeral.nos >= 12 || placarGeral.eles >= 12) {
+                alert(vencedor === 'nos' ? "VOCÊS VENCERAM A PARTIDA!" : "ELES VENCERAM A PARTIDA!");
+                location.reload();
+            } else { 
+                jogadorQueComeca = (jogadorQueComeca + 1) % 4; // Server Order +1
+                setTimeout(iniciarPartida, 1000); 
+            }
+        }
+
+        function atualizarPlacaresVisuais() {
+             const baseSlot = (mySlot === -1) ? 0 : mySlot;
+             // Visuais: j0, j3, j2, j1 (delta 0,1,2,3)
+             const mapId = ['j0', 'j3', 'j2', 'j1'];
+             
+             for(let serverIdx=0; serverIdx<4; serverIdx++) {
+                 // Delta visual
+                 const delta = (serverIdx - baseSlot + 4) % 4;
+                 const elId = mapId[delta];
+                 
+                 const st = statsJogadores[serverIdx];
+                 const tag = document.querySelector(`#${elId} .score-tag`);
+                 if(tag) {
+                     tag.innerText = `G: ${st.g}\nP: ${st.p}`;
+                     tag.style.color = (serverIdx % 2 === 0) ? 'var(--cor-nos)' : 'var(--cor-eles)';
+                 }
+             }
+        }
+
+        function mostrarBalaoFala(serverIdx, texto) {
+            const baseSlot = (mySlot === -1) ? 0 : mySlot;
+            const delta = (serverIdx - baseSlot + 4) % 4;
+            const mapId = ['j0', 'j3', 'j2', 'j1'];
+            const elId = mapId[delta];
+            
+            const balao = document.createElement('div');
+            balao.className = 'balao-fala';
+            balao.innerText = texto;
+            
+            const avatar = document.getElementById(elId);
+            if(!avatar) return;
+            const rect = avatar.getBoundingClientRect();
+            
+            balao.style.left = (rect.left + rect.width/2) + 'px';
+            balao.style.top = (rect.top - 50) + 'px';
+            
+            document.getElementById('camada-baloes').appendChild(balao);
+            
+            setTimeout(() => {
+                balao.style.opacity = '0';
+                setTimeout(() => balao.remove(), 500);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

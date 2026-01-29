@@ -1,1 +1,1 @@
-# trucopaulista
+# mytruco
